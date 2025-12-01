@@ -1,170 +1,82 @@
-{
- "cells": [
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "id": "238b6989",
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "import streamlit as st\n",
-    "import pandas as pd\n",
-    "import numpy as np\n",
-    "import pickle\n",
-    "import matplotlib.pyplot as plt\n",
-    "import seaborn as sns\n",
-    "\n",
-    "# ===============================\n",
-    "# LOAD TRAINED MODEL\n",
-    "# ===============================\n",
-    "@st.cache_resource\n",
-    "def load_model():\n",
-    "    with open(\"best_climate_accident_model.pkl\", \"rb\") as f:\n",
-    "        model = pickle.load(f)\n",
-    "    return model\n",
-    "\n",
-    "model = load_model()\n",
-    "\n",
-    "# ===============================\n",
-    "# PAGE SETTINGS\n",
-    "# ===============================\n",
-    "st.set_page_config(page_title=\"Climate Accident Prediction\", layout=\"wide\")\n",
-    "st.title(\"🌦️ Climate & Road Accident Prediction System\")\n",
-    "st.write(\"Enter driving, road & weather conditions to predict accident impact.\")\n",
-    "\n",
-    "# OPTIONAL DATA UPLOAD FOR VISUALIZATION\n",
-    "uploaded_file = st.sidebar.file_uploader(\"Upload dataset for charts (CSV)\", type=[\"csv\"])\n",
-    "df = None\n",
-    "if uploaded_file:\n",
-    "    df = pd.read_csv(uploaded_file)\n",
-    "    st.sidebar.success(\"Dataset uploaded\")\n",
-    "\n",
-    "# ===============================\n",
-    "# USER INPUT FORM\n",
-    "# ===============================\n",
-    "st.subheader(\"📥 Enter Scenario Details\")\n",
-    "\n",
-    "with st.form(\"input_form\"):\n",
-    "    col1, col2, col3 = st.columns(3)\n",
-    "\n",
-    "    with col1:\n",
-    "        Driver_Age = st.number_input(\"Driver Age\", 16, 90, 30)\n",
-    "        Driver_Experience = st.number_input(\"Experience (Years)\", 0, 50, 5)\n",
-    "        Number_of_Vehicles = st.number_input(\"Number of Vehicles\", 1, 10, 1)\n",
-    "        Speed_Limit = st.number_input(\"Speed Limit\", 10, 200, 60)\n",
-    "\n",
-    "    with col2:\n",
-    "        Time_of_Day = st.selectbox(\"Time of Day\", [\"Morning\", \"Afternoon\", \"Evening\", \"Night\"])\n",
-    "        Traffic_Density = st.selectbox(\"Traffic Density\", [\"Low\", \"Medium\", \"High\"])\n",
-    "        Road_Type = st.selectbox(\"Road Type\", [\"Highway\", \"Urban\", \"Rural\"])\n",
-    "        Vehicle_Type = st.selectbox(\"Vehicle Type\", [\"Car\", \"Bike\", \"Truck\", \"Bus\", \"Other\"])\n",
-    "\n",
-    "    with col3:\n",
-    "        Driver_Alcohol = st.selectbox(\"Driver Alcohol\", [\"No\", \"Yes\"])\n",
-    "        Road_Condition = st.selectbox(\"Road Condition\", [\"Dry\", \"Wet\", \"Snow\", \"Gravel\"])\n",
-    "        Road_Light_Condition = st.selectbox(\"Lighting\", [\"Day\", \"Night\", \"Low Light\"])\n",
-    "        Accident_Severity = st.slider(\"Accident Severity Score\", 0.0, 10.0, 5.0)\n",
-    "        Weather = st.selectbox(\"Weather\", [\"Clear\", \"Rain\", \"Fog\", \"Snow\", \"Storm\"])\n",
-    "\n",
-    "    submit = st.form_submit_button(\"🔮 Predict Accident Impact\")\n",
-    "\n",
-    "# ===============================\n",
-    "# PREDICTION\n",
-    "# ===============================\n",
-    "if submit:\n",
-    "    input_data = {\n",
-    "        \"Driver_Age\": Driver_Age,\n",
-    "        \"Time_of_Day\": Time_of_Day,\n",
-    "        \"Driver_Experience\": Driver_Experience,\n",
-    "        \"Number_of_Vehicles\": Number_of_Vehicles,\n",
-    "        \"Traffic_Density\": Traffic_Density,\n",
-    "        \"Road_Type\": Road_Type,\n",
-    "        \"Vehicle_Type\": Vehicle_Type,\n",
-    "        \"Driver_Alcohol\": Driver_Alcohol,\n",
-    "        \"Speed_Limit\": Speed_Limit,\n",
-    "        \"Road_Condition\": Road_Condition,\n",
-    "        \"Road_Light_Condition\": Road_Light_Condition,\n",
-    "        \"Accident_Severity\": Accident_Severity,\n",
-    "        \"Weather\": Weather\n",
-    "    }\n",
-    "\n",
-    "    input_df = pd.DataFrame([input_data])\n",
-    "\n",
-    "    prediction = model.predict(input_df)[0]\n",
-    "\n",
-    "    st.success(f\"🚨 Predicted Accident Impact Score: **{prediction:.2f}**\")\n",
-    "    st.write(\"### 📋 Input Details\")\n",
-    "    st.json(input_data)\n",
-    "\n",
-    "# ===============================\n",
-    "# VISUALS (IF DATA UPLOADED)\n",
-    "# ===============================\n",
-    "st.markdown(\"---\")\n",
-    "st.subheader(\"📊 Data Visualizations\")\n",
-    "\n",
-    "if df is not None:\n",
-    "    colA, colB = st.columns(2)\n",
-    "\n",
-    "    with colA:\n",
-    "        st.write(\"### 🎯 Accident Value Distribution\")\n",
-    "        fig1, ax1 = plt.subplots()\n",
-    "        sns.histplot(df[\"Accident\"], kde=True, ax=ax1)\n",
-    "        st.pyplot(fig1)\n",
-    "\n",
-    "    with colB:\n",
-    "        st.write(\"### 🔗 Correlation Heatmap\")\n",
-    "        numeric_df = df.select_dtypes(include=[\"int64\", \"float64\"])\n",
-    "        fig2, ax2 = plt.subplots(figsize=(8, 6))\n",
-    "        sns.heatmap(numeric_df.corr(), annot=True, ax=ax2)\n",
-    "        st.pyplot(fig2)\n",
-    "\n",
-    "    st.write(\"### 🧠 Feature Importance (Top Factors)\")\n",
-    "    try:\n",
-    "        rf = model.named_steps[\"model\"]\n",
-    "        preprocessor = model.named_steps[\"preprocessor\"]\n",
-    "\n",
-    "        ohe = preprocessor.named_transformers_[\"cat\"][\"onehot\"]\n",
-    "        categorical_features = preprocessor.transformers_[1][2]\n",
-    "        cat_names = ohe.get_feature_names_out(categorical_features)\n",
-    "\n",
-    "        numeric_features = preprocessor.transformers_[0][2]\n",
-    "        all_names = list(numeric_features) + list(cat_names)\n",
-    "\n",
-    "        importances = rf.feature_importances_\n",
-    "        fi_df = pd.DataFrame({\"Feature\": all_names, \"Importance\": importances}).sort_values(\n",
-    "            \"Importance\", ascending=False\n",
-    "        ).head(15)\n",
-    "\n",
-    "        fig3, ax3 = plt.subplots(figsize=(8, 6))\n",
-    "        sns.barplot(data=fi_df, x=\"Importance\", y=\"Feature\", ax=ax3)\n",
-    "        st.pyplot(fig3)\n",
-    "\n",
-    "    except Exception as e:\n",
-    "        st.error(\"Feature importance only available if RandomForest was the best model\")\n",
-    "else:\n",
-    "    st.info(\"Upload dataset to enable statistical visuals\")\n"
-   ]
-  }
- ],
- "metadata": {
-  "kernelspec": {
-   "display_name": "Python 3 (ipykernel)",
-   "language": "python",
-   "name": "python3"
-  },
-  "language_info": {
-   "codemirror_mode": {
-    "name": "ipython",
-    "version": 3
-   },
-   "file_extension": ".py",
-   "mimetype": "text/x-python",
-   "name": "python",
-   "nbconvert_exporter": "python",
-   "pygments_lexer": "ipython3",
-   "version": "3.10.9"
-  }
- },
- "nbformat": 4,
- "nbformat_minor": 5
-}
+import streamlit as st
+import pandas as pd
+import pickle
+
+# ==============================
+# Page Setup
+# ==============================
+st.set_page_config(page_title="Climate & Accident Prediction", page_icon="🚗", layout="centered")
+
+# Title & Subtitle
+st.markdown("<h1 style='text-align:center; color:#1a73e8;'>🚗 Climate & Road Accident Impact Prediction</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; font-size:18px;'>Predict road accident risk based on environmental & driving conditions</p>", unsafe_allow_html=True)
+st.markdown("---")
+
+# ==============================
+# Load Model
+# ==============================
+@st.cache_resource
+def load_model():
+    model = pickle.load(open("best_climate_accident_model.pkl", "rb"))
+    return model
+
+try:
+    best_model = load_model()
+except:
+    st.error("❌ Model file not found! Please upload 'best_climate_accident_model.pkl' to the same folder.")
+    st.stop()
+
+# ==============================
+# Input Form
+# ==============================
+st.subheader("📥 Enter Scenario Details")
+
+with st.form("prediction_form"):
+    col1, col2 = st.columns(2)
+
+    with col1:
+        Driver_Age = st.number_input("Driver Age", 16, 90, 30)
+        Driver_Experience = st.number_input("Driver Experience (Years)", 0, 50, 5)
+        Number_of_Vehicles = st.number_input("Number of Vehicles", 1, 10, 1)
+        Speed_Limit = st.number_input("Speed Limit", 10, 200, 60)
+        Driver_Alcohol = st.selectbox("Driver Alcohol", [0, 1], format_func=lambda x: "No" if x==0 else "Yes")
+        Traffic_Density = st.selectbox("Traffic Density", [1,2,3], format_func=lambda x: {1:"Low",2:"Medium",3:"High"}[x])
+
+    with col2:
+        Time_of_Day = st.selectbox("Time of Day", ["Morning","Afternoon","Evening","Night"])
+        Road_Type = st.selectbox("Road Type", ["Highway","Urban","Rural"])
+        Vehicle_Type = st.selectbox("Vehicle Type", ["Car","Bike","Truck","Bus","Other"])
+        Road_Condition = st.selectbox("Road Condition", ["Dry","Wet","Snow","Gravel"])
+        Road_Light_Condition = st.selectbox("Light Condition", ["Day","Night","Low Light"])
+        Accident_Severity = st.selectbox("Accident Severity", ["Low","Medium","High"])
+        Weather = st.selectbox("Weather", ["Clear","Rain","Fog","Snow","Storm"])
+
+    submitted = st.form_submit_button("🔮 Predict")
+
+# ==============================
+# Prediction function
+# ==============================
+if submitted:
+    input_data = pd.DataFrame([{
+        "Driver_Age": Driver_Age,
+        "Time_of_Day": Time_of_Day,
+        "Driver_Experience": Driver_Experience,
+        "Number_of_Vehicles": Number_of_Vehicles,
+        "Traffic_Density": Traffic_Density,
+        "Road_Type": Road_Type,
+        "Vehicle_Type": Vehicle_Type,
+        "Driver_Alcohol": Driver_Alcohol,
+        "Speed_Limit": Speed_Limit,
+        "Road_Condition": Road_Condition,
+        "Road_Light_Condition": Road_Light_Condition,
+        "Accident_Severity": Accident_Severity,
+        "Weather": Weather
+    }])
+
+    prediction = best_model.predict(input_data)[0]
+
+    st.success(f"### 🚨 Predicted Accident Impact Score: **{prediction:.2f}**")
+    st.json(input_data.to_dict(orient="records")[0])
+
+    st.markdown("---")
+    st.markdown("<p style='text-align:center; color:gray;'>Real-time prediction powered by Machine Learning</p>", unsafe_allow_html=True)
